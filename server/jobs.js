@@ -52,32 +52,50 @@ export const createJob = (name, {
 	getWork,
 	runFn,
 	interval,
+	concurrency = 1,
 }) => {
 	const job = new Job(name);
 	jobs.push(job);
+	let checking = false;
 
-	const run = async () => {
-		if (job.work.size > 0) console.log(`[JOB] ${name} might be clogged, size = ${job.work.size}`);
-
-		let doc;
+	const runDoc = async doc => {
 		try {
-			job.status('checking');
-			doc = await getWork([...job.work]);
-			if (doc) {
-				job.work.add(doc._id);
-				job.status('running');
-				const result = await runFn(doc);
-				job.status('done', result);
-			} else {
-				job.status('idle', `Sleeping for ${interval}ms`);
-				await sleepMs(interval);
-			}
+			const result = await runFn(doc);
+			job.status('done', result);
 		} catch (err) {
 			console.warn('[ERROR]', name);
 			console.warn(err);
 			job.status('error', err.toString());
 		} finally {
-			if (doc) job.work.delete(doc._id);
+			job.work.delete(doc._id);
+		}
+	};
+
+	const run = async () => {
+		if (checking) return;
+		checking = true;
+		try {
+			if (job.work.size >= concurrency) return;
+
+			if (job.work.size === 0) job.status('checking');
+			while (job.work.size < concurrency) {
+				const doc = await getWork([...job.work]);
+				if (!doc) {
+					if (job.work.size === 0) {
+						job.status('idle', `Sleeping for ${interval}ms`);
+						await sleepMs(interval);
+					} else {
+						job.status('running');
+					}
+					return;
+				}
+				if (job.work.has(doc._id)) return;
+				job.work.add(doc._id);
+				job.status('running');
+				runDoc(doc);
+			}
+		} finally {
+			checking = false;
 			if (mode === RUN) job.timeout = setTimeout(run, interval);
 		}
 	};

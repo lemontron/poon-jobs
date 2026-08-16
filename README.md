@@ -36,10 +36,13 @@ createJob('Process Tasks', {
 
 		return `Processed ${task._id}`;
 	},
+	'concurrency': 1,
 	'interval': 60 * 1000,
 });
 ```
 
 `busyIds` contains documents already being processed by this job, which helps
-avoid running the same work twice. In development, jobs default to `IDLE`; set
-`mode: RUN` when you want the job loop to run automatically.
+avoid running the same work twice. `concurrency` controls how many documents a
+job can process at the same time and defaults to `1`. In development, jobs
+default to `IDLE`; set `mode: RUN` when you want the job loop to run
+automatically.
