@@ -9,6 +9,7 @@ Package.onUse(api => {
 	api.use('meteor');
 	api.use('modules');
 	api.use('mongo');
+	api.use('poon-router');
 	api.mainModule('client.js', 'client');
 	api.mainModule('server.js', 'server');
 });

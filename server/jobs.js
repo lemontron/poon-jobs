@@ -1,45 +1,27 @@
 import { Meteor } from 'meteor/meteor';
 import { AdminJobs } from '../db';
+import { EventEmitter } from 'node:events';
 
 const jobs = [];
 const sleepMs = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-class Bus {
-	constructor(initState) {
-		this.state = initState;
-		this.listeners = [];
-	}
-
-	update = val => {
-		if (this.state === val) return;
-		this.state = val;
-		this.listeners.forEach(fn => fn(val));
-	};
-
-	on = cb => {
-		this.listeners.push(cb);
-		return () => this.listeners = this.listeners.filter(fn => fn !== cb);
-	};
-}
-
-class Job extends Bus {
+class Job extends EventEmitter {
 	constructor(name) {
-		super({'status': 'init'});
+		super();
+		this.state = {'status': 'init'};
 		this.name = name;
 		this.timeout = null;
 		this.work = new Set();
 	}
 
 	status = (status, result) => {
-		const updates = {
-			status,
-			'updatedOn': new Date(),
-		};
+		const updates = {status, 'updatedOn': new Date()};
 		if (result !== undefined) updates.result = result;
-		this.update({
+		this.state = {
 			...this.state,
 			...updates,
-		});
+		};
+		this.emit('status', this.state);
 	};
 }
 
@@ -116,10 +98,11 @@ Meteor.publish('AdminJobs', function() {
 	});
 	jobs.forEach((job, i) => {
 		this.added('AdminJobs', job.name, {...job.state, 'index': i});
-		const off = job.on(updates => {
+		const onStatus = updates => {
 			this.changed('AdminJobs', job.name, updates);
-		});
-		this.onStop(off);
+		};
+		job.on('status', onStatus);
+		this.onStop(() => job.off('status', onStatus));
 	});
 	this.ready();
 });
