@@ -46,7 +46,7 @@ export const createJob = (name, {
 			job.status('done', result);
 		} catch (err) {
 			console.warn('[ERROR]', name);
-			console.warn(err);
+			console.warn(err.toString());
 			job.status('error', err.toString());
 		} finally {
 			job.work.delete(doc._id);
