@@ -36,13 +36,13 @@ createJob('Process Tasks', {
 
 		return `Processed ${task._id}`;
 	},
-	'concurrency': 1,
 	'interval': 60 * 1000,
 });
 ```
 
-`busyIds` contains documents already being processed by this job, which helps
-avoid running the same work twice. `concurrency` controls how many documents a
-job can process at the same time and defaults to `1`. In development, jobs
-default to `IDLE`; set `mode: RUN` when you want the job loop to run
-automatically.
+The function returned by `createJob` starts a document immediately. Manual and
+scheduled calls for the same document share its in-flight promise. Different
+documents can run independently. The worker passes running IDs to `getWork`
+so it can select another eligible document.
+In development, jobs default to `IDLE`.
+Set `mode: RUN` to run the job loop automatically.
